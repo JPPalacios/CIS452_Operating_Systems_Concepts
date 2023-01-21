@@ -10,6 +10,7 @@
     https://stackoverflow.com/questions/28502305/writing-a-simple-shell-in-c-using-fork-execvp?noredirect=1&lq=1
     https://brennan.io/2015/01/16/write-a-shell-in-c/
     https://purdueusb.com/wiki/terminal
+    https://www.ibm.com/docs/en/zos/2.3.0?topic=functions-times-get-process-child-process-times
 */
 
 #include <stdio.h>
@@ -19,6 +20,8 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <sys/times.h>
+#include <time.h>
 
 #define COMMAND_LENGTH 20
 #define BUFFER_SIZE 32
@@ -31,6 +34,10 @@ int main ()
     char *line = malloc(sizeof(char) * BUFFER_SIZE); // user input buffer
     char *argv[3];                                   // vector of pointers
     char *command, *argument;
+
+    struct tms t;                                    // timer struct
+    clock_t dub;
+    int tics_per_second = sysconf(_SC_CLK_TCK);      // system-defined ticks per second
 
     while(1){
 
@@ -73,10 +80,22 @@ int main ()
         else {
             // waiting until the child process terminates
             childProcessID = wait(&status);
+            if(childProcessID < 0){
+                puts("Wait() error.\n");
+            }
+            else if (!WIFEXITED(status))
+                puts("Child did not exit successfully");
+            else if ((dub = times(&t)) == -1)
+                perror("times() error");
+            else {
+                printf("process was dubbed %ld cycles ago.\n\n", dub);
+                printf("            utime           stime\n");
+                printf("parent:    %ld        %ld\n", t.tms_utime, t.tms_stime);
+                printf("child:     %ld        %ld\n", t.tms_cutime, t.tms_cstime);
+            }
         }
+    }   
 
-        fflush(stdin);
-    }
-
+    fflush(stdin);
     return 0;
 }
