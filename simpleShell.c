@@ -26,7 +26,7 @@
 int main ()
 {
     pid_t pid, childProcessID, parentProcessID;
-    int status;
+    int status, length;
 
     char *line = malloc(sizeof(char) * BUFFER_SIZE); // user input buffer
     char *argv[3];                                   // vector of pointers
@@ -48,12 +48,8 @@ int main ()
         // printf("%s\n%s\n", command, argument);  // debug print, works so far
 
         // change end character to null character for arguments
-        for(int i = 0; i < strlen(argument); i++){
-            if(argument[i] == EOF || argument[i] == '\n'){
-                printf("stripping argument...\n");
-                argument[i] = '\0';
-            }
-        }
+        length = strlen(argument);
+        argument[length - 1] = '\0';
 
         // assigning our command and argument to vector of pointers
         argv[0] = command;
