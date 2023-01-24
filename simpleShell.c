@@ -10,9 +10,12 @@
     https://stackoverflow.com/questions/28502305/writing-a-simple-shell-in-c-using-fork-execvp?noredirect=1&lq=1
     https://brennan.io/2015/01/16/write-a-shell-in-c/
     https://purdueusb.com/wiki/terminal
-    https://www.ibm.com/docs/en/zos/2.3.0?topic=functions-times-get-process-child-process-times
+    https://man7.org/linux/man-pages/man2/getrusage.2.html
+    https://www.delftstack.com/howto/c/getrusage-example-in-c/
 */
 
+#include <sys/resource.h>
+#include <sys/times.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -20,8 +23,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
-#include <sys/times.h>
-#include <time.h>
 
 #define COMMAND_LENGTH 20
 #define BUFFER_SIZE 32
@@ -30,20 +31,18 @@ int main ()
 {
     pid_t pid, childProcessID, parentProcessID;
     int status, length;
+    struct rusage usage;
+    long prevSwitch = 0;
+    long nextSwitch = 0;
 
     char *line = malloc(sizeof(char) * BUFFER_SIZE); // user input buffer
     char *argv[3];                                   // vector of pointers
     char *command, *argument;
 
-    struct tms t;                                    // timer struct
-    clock_t dub;
-    int tics_per_second = sysconf(_SC_CLK_TCK);      // system-defined ticks per second
-
     while(1){
 
         printf("> ");
         fgets(line, sizeof(line), stdin);
-        // printf("%s\n", line); // debug print, works so far
 
         if (strcmp(line, "quit\n") == 0){
             exit(0);
@@ -52,7 +51,6 @@ int main ()
         // tokenize the line using strtok
         command  = strtok(line, " ");
         argument = strtok(NULL, " ");
-        // printf("%s\n%s\n", command, argument);  // debug print, works so far
 
         // change end character to null character for arguments
         length = strlen(argument);
@@ -70,6 +68,7 @@ int main ()
         }
         else if (pid == 0) {
             // child process to execute the command execvp
+            printf("\n");
             if (execvp(argv[0], &argv[0]) < 0) {
                 perror("execution failed");
                 exit(1);
@@ -79,23 +78,18 @@ int main ()
         }
         else {
             // waiting until the child process terminates
-            childProcessID = wait(&status);
-            if(childProcessID < 0){
-                puts("Wait() error.\n");
-            }
-            else if (!WIFEXITED(status))
-                puts("Child did not exit successfully");
-            else if ((dub = times(&t)) == -1)
-                perror("times() error");
-            else {
-                printf("process was dubbed %ld cycles ago.\n\n", dub);
-                printf("            utime           stime\n");
-                printf("parent:    %ld        %ld\n", t.tms_utime, t.tms_stime);
-                printf("child:     %ld        %ld\n", t.tms_cutime, t.tms_cstime);
-            }
+            wait(&status);
         }
-    }   
 
-    fflush(stdin);
+        getrusage(RUSAGE_CHILDREN, &usage);
+        printf("\nuser CPU time used was %ld us\n\n", usage.ru_utime.tv_usec);
+
+        nextSwitch = usage.ru_nivcsw;
+        printf("involuntary contexts switches: %ld times\n\n", (nextSwitch - prevSwitch));
+        prevSwitch = nextSwitch;
+
+        fflush(stdin);
+    }
+
     return 0;
 }
