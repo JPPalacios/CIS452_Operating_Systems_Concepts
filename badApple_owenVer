@@ -1,0 +1,157 @@
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <signal.h>
+#include <sys/wait.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
+#define CHAR_BUFFER_SIZE 50
+#define INT_BUFFER_SIZE 3
+
+#define RECEIVING_END 0
+#define SENDING_END 1
+
+typedef struct messageType{
+    int sendTo;
+    char message[CHAR_BUFFER_SIZE];
+} messageType;
+
+int getNodeNum(void){
+
+    char *line = calloc(INT_BUFFER_SIZE, sizeof(int));
+    int k;
+
+    printf("Enter desired number of communcation nodes: ");
+    fflush(stdout);
+    fgets(line, sizeof(line), stdin);
+    k = atoi(line);
+    free(line);
+
+    return k;
+}
+
+messageType getMessage(void){
+
+    char *line = calloc(INT_BUFFER_SIZE, sizeof(int));
+    char *junk;
+    messageType newMessage;
+
+    printf("Send to which node? Must be 0-(k-1): ");
+    fgets(line, sizeof(line), stdin);
+    newMessage.sendTo = atoi(line);
+
+    printf("Message (must be under %d chars): ", CHAR_BUFFER_SIZE - 1);
+    fgets(newMessage.message, sizeof(newMessage.message), stdin);
+    newMessage.message[strcspn(newMessage.message, "\n")] = 0; //attempts to get rid of newline
+
+    free(line);
+    return newMessage;
+}
+
+int main(){
+
+    srand(time(NULL));
+
+    int kNodes = getNodeNum();
+    pid_t pid[kNodes];
+    int pipes[kNodes+1][2];
+
+    int badNode = (rand() % kNodes), status;
+
+    messageType apple = getMessage();
+
+    //strip message of '\n'
+
+    //generate k number of pipes
+    for(int i = 0; i < kNodes; i++){
+        if(pipe(pipes[i]) < 0){
+            perror("Pipe failed!");
+            exit(1);
+        }
+    }
+
+    //generate k number of nodes
+    for(int i = 0; i < kNodes; i++){
+
+        pid[i] = fork();
+        if(pid[i] < 0){
+            perror("Fork Failed!");
+            exit(1);
+        }
+        if(pid[i] == 0){ // child
+
+            //close every pipe not used by *this* child
+            for(int j = 0; j < kNodes; j++){
+                if(j != i){
+                    close(pipes[j][RECEIVING_END]);
+                }
+                if(j != i + 1){
+                    close(pipes[j][SENDING_END]);
+                }
+            }
+
+            //receive message from k - 1
+            messageType receivedApple;
+            read(pipes[i][RECEIVING_END], &receivedApple, sizeof(messageType));
+
+            //check if *this* child is bad apple
+            if(badNode == i){
+                printf("[node %d] This node is the Bad Apple! Modifying message...\n", i);
+                const char *badMessage = "Your message got Bad Apple'd!";
+                strcat(receivedApple.message, badMessage);
+            }
+
+            //check if this message is for *this* child
+            if(receivedApple.sendTo == i){
+                printf("[node %d] Message reached destination!\n", i);
+                printf("[node %d] Message reads: \"%s\"\n", i, receivedApple.message);
+            }
+            else{
+                printf("[node %d] Message not addressed to this node...\n", i);
+                
+            }
+
+            //keep packet going so it hits the end
+            write(pipes[i+1][SENDING_END], &receivedApple, sizeof(messageType));
+
+            //task complete, shutdown comms
+            close(pipes[i][RECEIVING_END]);
+            close(pipes[i + 1][SENDING_END]);
+            return 0;
+        }
+    }
+
+    // close all pipes not interacting with top node
+    for(int j = 0; j < kNodes; j++){
+        if(j != kNodes){
+            close(pipes[j][RECEIVING_END]);
+        }
+        if(j != 0){
+            close(pipes[j][SENDING_END]);
+        }
+    }
+
+    // send the user-defined message to the top node
+    write(pipes[0][SENDING_END], &apple, sizeof(messageType));
+
+    // read from k'th node
+    read(pipes[kNodes][RECEIVING_END], &apple, sizeof(messageType));
+    if(apple.sendTo == 0){
+            printf("[node 0] Message reached destination!\n");
+            printf("[node 0] Message reads: \"%s\"\n", apple.message);
+        }
+
+    // transmissions complete, close remaining pipes
+    printf("[node 0] Transmission complete. Closing pipes...\n");
+    close(pipes[0][RECEIVING_END]);
+    close(pipes[kNodes][SENDING_END]);
+
+    // wait for child processes to complete
+    for (int i = 0; i < kNodes; i++){
+        wait(&status);
+    }
+
+    return 0; //End of Main
+}
