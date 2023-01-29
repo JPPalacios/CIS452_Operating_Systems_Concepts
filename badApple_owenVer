@@ -13,6 +13,11 @@
 #define RECEIVING_END 0
 #define SENDING_END 1
 
+void sigHandler0(int sigNum){
+    printf(" received. That's it, I'm shutting you down...\n");
+    exit(0);
+}
+
 typedef struct messageType{
     int sendTo;
     char message[CHAR_BUFFER_SIZE];
@@ -32,15 +37,17 @@ int getNodeNum(void){
     return k;
 }
 
-messageType getMessage(void){
+messageType getMessage(int kNodes){
 
     char *line = calloc(INT_BUFFER_SIZE, sizeof(int));
     char *junk;
     messageType newMessage;
 
-    printf("Send to which node? Must be 0-(k-1): ");
-    fgets(line, sizeof(line), stdin);
-    newMessage.sendTo = atoi(line);
+    do{
+        printf("Send to which node? Must be 0-(k-1): ");
+        fgets(line, sizeof(line), stdin);
+        newMessage.sendTo = atoi(line);
+    }while(newMessage.sendTo >= kNodes);
 
     printf("Message (must be under %d chars): ", CHAR_BUFFER_SIZE - 1);
     fgets(newMessage.message, sizeof(newMessage.message), stdin);
@@ -52,17 +59,16 @@ messageType getMessage(void){
 
 int main(){
 
-    srand(time(NULL));
+    
 
+    srand(time(NULL));
     int kNodes = getNodeNum();
     pid_t pid[kNodes];
     int pipes[kNodes+1][2];
+    int badNode, status;
 
-    int badNode = (rand() % kNodes), status;
-
-    messageType apple = getMessage();
-
-    //strip message of '\n'
+    badNode = (rand() % kNodes);
+    messageType apple = getMessage(kNodes);
 
     //generate k number of pipes
     for(int i = 0; i < kNodes; i++){
@@ -81,6 +87,8 @@ int main(){
             exit(1);
         }
         if(pid[i] == 0){ // child
+
+            signal(SIGINT,  sigHandler0);
 
             //close every pipe not used by *this* child
             for(int j = 0; j < kNodes; j++){
@@ -109,11 +117,12 @@ int main(){
                 printf("[node %d] Message reads: \"%s\"\n", i, receivedApple.message);
             }
             else{
-                printf("[node %d] Message not addressed to this node...\n", i);
-                
+                printf("[node %d] Message not addressed to this node.\n", i);
+                sleep(1);
             }
 
             //keep packet going so it hits the end
+            printf("[node %d] Transmitting to Next Node...\n", i);
             write(pipes[i+1][SENDING_END], &receivedApple, sizeof(messageType));
 
             //task complete, shutdown comms
@@ -155,3 +164,4 @@ int main(){
 
     return 0; //End of Main
 }
+
