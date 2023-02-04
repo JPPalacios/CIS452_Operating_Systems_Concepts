@@ -30,7 +30,6 @@ int main(void)
     while(1)
     {
         dispatchThreadStatus = pthread_create(&dispatchThread, NULL, dispatchFile, NULL);
-        // sleep(1);
 
         joinStatus = pthread_join(dispatchThread, &dispatchThreadResult);
 
@@ -48,7 +47,9 @@ void *workerFileAccess(void *arg)
 {
     int nMin = 7, nMax = 10;
     fileRequests++;
-    // simulates file access duration
+    // simulates file access duration:
+    // (80% of the time sleep for 1 second)
+    // (20% of the time sleep for 7 to 10 seconds)
     (rand() % 10 < 8) ? sleep(1) : sleep(rand() % ((nMax + 1) - (nMin) + nMin) );
 
     printf("\nworker received filename: \"%s\"\n", (char *) arg);
@@ -80,14 +81,14 @@ void *dispatchFile(void *arg)
 
 void getFileName(void)
 {
-    fputs("\nEnter a filename: ", stdout);
+    fputs("Enter a filename: ", stdout);
     fgets(filename, sizeof(filename), stdin);
-    filename[strlen(filename) - 1] = '\0';
+    filename[strlen(filename) - 1] = '\0';  // adds null char at the end
 }
 
 void sigHandler(int sigNum)
 {
-    printf(" received. Displaying program statistics...\n");
+    printf(" received. \n\nDisplaying program statistics...\n");
     printf("\n---------- Program Statistics ---------- \n");
     printf("File requests: %d\n", fileRequests);
     printf("---------------------------------------- \n");
