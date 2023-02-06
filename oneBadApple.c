@@ -1,16 +1,3 @@
-/*
-    name: Owen Gibson, JP Palacios
-    date: January 27, 2023
-    course: CIS 452-02 - Operating Systems Concepts
-
-    description:
-
-    pipes:
-               output[0]  --------> input[1]
-        close(output[0])  --- x --> close(input[1])
-
-*/
-
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -60,8 +47,14 @@ messageType getMessage(int kNodes){
     messageType newMessage;
 
     do{
-        printf("Send to which node? (range: 0 to k - 1): ");
+        printf("Send to which node? (range: 0 to k - 1, enter \"q\" to quit): ");
         fgets(line, sizeof(line), stdin);
+
+        if(strcmp(line, "q\n") == 0)
+        {
+            exit(0);
+        }
+
         newMessage.header = atoi(line);
     }while(newMessage.header >= kNodes);
 
@@ -81,132 +74,137 @@ int main(){
     int pipes[kNodes + 1][2];
     int badNode = (rand() % kNodes);
 
-    messageType apple = getMessage(kNodes);
-
-    // generate k + 1 pipes
-    for(int i = 0; i < kNodes + 1; i++)
+    while(1)
     {
-        if(pipe(pipes[i]) < 0)
+        messageType apple = getMessage(kNodes);
+
+        // generate k + 1 pipes
+        for(int i = 0; i < kNodes + 1; i++)
         {
-            perror("Pipe failed!");
-            exit(1);
+            if(pipe(pipes[i]) < 0)
+            {
+                perror("Pipe failed!");
+                exit(1);
+            }
         }
-    }
 
-    // generate k nodes
-    for(int currentNode = 0; currentNode < kNodes; currentNode++)
-    {
-        int nextNode = currentNode + 1;
-
-        // create a child node and store pid
-        pid[currentNode] = fork();
-        
-        if(pid[currentNode] < 0)
+        // generate k nodes
+        for(int currentNode = 0; currentNode < kNodes; currentNode++)
         {
-            perror("Fork Failed!");
-            exit(1);
-        }
-        
-        // child node process scope
-        if(pid[currentNode] == 0)
-        {
+            int nextNode = currentNode + 1;
 
-            // close every non-adjacent pipe of the current child node
-            for(int j = 0; j < kNodes; j++)
+            // create a child node and store pid
+            pid[currentNode] = fork();
+
+            if(pid[currentNode] < 0)
             {
-                if(j != currentNode)
+                perror("Fork Failed!");
+                exit(1);
+            }
+
+            // child node process scope
+            if(pid[currentNode] == 0)
+            {
+
+                // close every non-adjacent pipe of the current child node
+                for(int j = 0; j < kNodes; j++)
                 {
-                    close(pipes[j][RECEIVING_END]);
+                    if(j != currentNode)
+                    {
+                        close(pipes[j][RECEIVING_END]);
+                    }
+                    if(j != nextNode)
+                    {
+                        close(pipes[j][SENDING_END]);
+                    }
                 }
-                if(j != nextNode)
-                {
-                    close(pipes[j][SENDING_END]);
-                }
-            }
 
-            // receive a message from k - 1 node
-            messageType receivedApple;
-            read(pipes[currentNode][RECEIVING_END], &receivedApple, sizeof(messageType));
-            fflush(stdout);
-
-            // check if current child node is the bad apple
-            if(badNode == currentNode)
-            {
-                printf("[node %2d] - This node is the bad apple, modifying message...\n",currentNode);
-                const char *badMessage = ", Your message got bad apple'd!";
-                strcat(receivedApple.message, badMessage);
-            }
-
-            //check if this message is for *this* child node
-            if(receivedApple.header == currentNode)
-            {
-                receivedApple.header = 0;
-                printf("[node %2d] - Message reached its destination!\n", currentNode);
-                printf("[node %2d] - Message reads: \"%s\"\n", currentNode, receivedApple.message);
-            }
-            else
-            {
-                printf("[node %2d] - Message not addressed to this node.\n", currentNode);
-            }
-
-
-            // let the sender know it's the last child node in the network
-            if (currentNode == kNodes - 1)
-            {
-                printf("[node %2d] - Sending message to the last node...\n", currentNode);
+                // receive a message from k - 1 node
+                messageType receivedApple;
+                read(pipes[currentNode][RECEIVING_END], &receivedApple, sizeof(messageType));
                 fflush(stdout);
+
+                // check if current child node is the bad apple
+                if(badNode == currentNode)
+                {
+                    printf("[node %2d] - This node is the bad apple, modifying message...\n",currentNode);
+                    const char *badMessage = ", Your message got bad apple'd!";
+                    strcat(receivedApple.message, badMessage);
+                }
+
+                //check if this message is for *this* child node
+                if(receivedApple.header == currentNode)
+                {
+                    receivedApple.header = 0;
+                    printf("[node %2d] - Message reached its destination!\n", currentNode);
+                    printf("[node %2d] - Message reads: \"%s\"\n", currentNode, receivedApple.message);
+                }
+                else
+                {
+                    printf("[node %2d] - Message not addressed to this node.\n", currentNode);
+                }
+
+
+                // let the sender know it's the last child node in the network
+                if (currentNode == kNodes - 1)
+                {
+                    printf("[node %2d] - Sending message to the last node...\n", currentNode);
+                    fflush(stdout);
+                }
+                else
+                {
+                    printf("[node %2d] - Sending message to the next node...\n", currentNode);
+                }
+
+                // send the message to the next child node in line after some delay
+                sleep(1);
+                write(pipes[nextNode][SENDING_END], &receivedApple, sizeof(messageType));
+                fflush(stdout);
+
+                // task complete, close adjacent pipes and terminate current child node
+                close(pipes[currentNode][RECEIVING_END]);
+                close(pipes[nextNode][SENDING_END]);
+
+                return 0;
             }
-            else
+        }
+
+        // install a signal to be raised when a user presses ctrl-c
+        signal(SIGINT, sigHandler);
+
+        // close non-adjacent pipes of the 0th child node
+        for(int j = 0; j < kNodes; j++)
+        {
+            if(j != kNodes)
             {
-                printf("[node %2d] - Sending message to the next node...\n", currentNode);
+                close(pipes[j][RECEIVING_END]);
             }
-
-            // send the message to the next child node in line after some delay
-            sleep(1);
-            write(pipes[nextNode][SENDING_END], &receivedApple, sizeof(messageType));
-            fflush(stdout);
-
-            // task complete, close adjacent pipes and terminate current child node
-            close(pipes[currentNode][RECEIVING_END]);
-            close(pipes[nextNode][SENDING_END]);
-
-            return 0;
+            if(j != 0)
+            {
+                close(pipes[j][SENDING_END]);
+            }
         }
-    }
 
-    // install a signal to be raised when a user presses ctrl-c
-    signal(SIGINT, sigHandler);
+        // send the original message to the 0th child node
+        printf("\nStarting new message transmission (%d nodes)...\n", kNodes);
+        printf("\nSent message: \"%s\"\n\n", apple.message);
+        write(pipes[0][SENDING_END], &apple, sizeof(messageType));
 
-    // close non-adjacent pipes of the 0th child node
-    for(int j = 0; j < kNodes; j++)
-    {
-        if(j != kNodes)
+        // receive the message from kth child node
+        read(pipes[kNodes][RECEIVING_END], &apple, sizeof(messageType));
+        printf("\nReceived message: \"%s\"\n\n", apple.message);
+
+        // transmissions complete, close remaining pipes
+        printf("Message Transmission complete. Closing pipes...\n\n");
+        close(pipes[0][RECEIVING_END]);
+        close(pipes[kNodes][SENDING_END]);
+
+        // wait for child processes to complete
+        for (int i = 0; i < kNodes; i++)
         {
-            close(pipes[j][RECEIVING_END]);
+            wait(NULL);
         }
-        if(j != 0)
-        {
-            close(pipes[j][SENDING_END]);
-        }
-    }
 
-    // send the original message to the 0th child node
-    printf("\nSent message: \"%s\"\n\n", apple.message);
-    write(pipes[0][SENDING_END], &apple, sizeof(messageType));
-
-    // receive the message from kth child node
-    read(pipes[kNodes][RECEIVING_END], &apple, sizeof(messageType));
-    printf("\nReceived message: \"%s\"\n\n", apple.message);
-
-    // transmissions complete, close remaining pipes
-    printf("Message Transmission complete. Closing pipes...\n");
-    close(pipes[0][RECEIVING_END]);
-    close(pipes[kNodes][SENDING_END]);
-
-    // wait for child processes to complete
-    for (int i = 0; i < kNodes; i++)
-    {
-        wait(NULL);
     }
 
     return 0;
