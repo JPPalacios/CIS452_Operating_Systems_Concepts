@@ -15,25 +15,23 @@
 #include <sys/shm.h>
 
 #define MEM_BYTE_SIZE 4096
-#define TEXT_SIZE 100
+#define TEXT_SIZE 256
+
+#define BUFFER_SIZE 256
 
 #define WRITER_TURN 1
 #define READER_TURN 2
 
 #define SHARED_MEM_OPTIONS (IPC_CREAT | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP)
 
+#define EXIT_SUCCESS 0
+#define EXIT_FAILURE 1
+
 typedef struct messageType
 {
+    int cleanup;
     int turn;
     char message[TEXT_SIZE];
 } messageType;
-
-int value;
-
-char *get_user_input(void);
-
-void keyboard_interrupt(int signal_number);
-
-void call_status(int function_call, char *message);
 
 #endif // COMMON_H_
