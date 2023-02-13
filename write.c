@@ -11,6 +11,12 @@
 
 #include "common.h"
 
+void keyboard_interrupt(int signalNumber);
+char *get_user_input(void);
+void call_status(int functionCall, char *message);
+
+messageType *sharedMemoryPointer;
+
 int main(void)
 {
     // handling keyboard-interruption ctrl-c
@@ -25,13 +31,15 @@ int main(void)
     call_status(sharedMemoryID = shmget(key, sizeof(messageType), SHARED_MEM_OPTIONS), "writer: unable to get shared memory\n");
 
     // attach this file to shared memory segment
-    messageType *sharedMemoryPointer;
     call_status(((sharedMemoryPointer = shmat(sharedMemoryID, 0, 0)) == (void *) -1), "writer: Unable to attach\n");
 
     // writer goes first
     (*sharedMemoryPointer).turn = WRITER_TURN;
 
-    while(1)
+    // cleared cleanup flag allows program to continue
+    (*sharedMemoryPointer).cleanup = 0;
+
+    while(!(*sharedMemoryPointer).cleanup)
     {
         if ((*sharedMemoryPointer).turn == WRITER_TURN)
         {
@@ -47,4 +55,50 @@ int main(void)
     call_status(shmctl(sharedMemoryID, IPC_RMID, 0), "writer: unable to deallocate\n");
 
     return 0;
+}
+
+char *get_user_input(void)
+{
+    char buffer[TEXT_SIZE];
+    char *userInput = malloc(strlen(buffer) + 1);
+
+    fputs("\n[writer] - enter a message: ", stdout);
+    fgets(buffer, sizeof(buffer), stdin);
+
+    // handling "quit" from user input
+    call_status((strcmp(buffer, "quit\n") == 0) * -1, " ");
+    buffer[strlen(buffer) - 1] = '\0';
+
+    return strcpy(userInput, buffer);
+}
+
+void keyboard_interrupt(int signalNumber)
+{
+    printf(" received. Terminating program...\n");
+
+    // cleanup flag set HIGH allows reader to clean up
+    (*sharedMemoryPointer).cleanup = 1;
+
+    // detach from shared memory segment
+    call_status(shmdt(sharedMemoryPointer), "writer: unable to detach\n");
+
+    exit(EXIT_SUCCESS);
+}
+
+void call_status(int functionCall, char *message)
+{
+    if (functionCall < 0)
+    {
+        if (strcmp(message, " ") == 0)
+        {
+            // cleanup flag set HIGH allows reader to clean up
+            (*sharedMemoryPointer).cleanup = 1;
+            exit(EXIT_SUCCESS);
+        }
+        else
+        {
+            perror(message);
+            exit(EXIT_FAILURE);
+        }
+    }
 }
