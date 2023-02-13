@@ -11,43 +11,39 @@
 
 #include "common.h"
 
-
 int main(void)
 {
-    int sharedMemoryID;
-    char *sharedMemoryPointer;
-
     // handling keyboard-interruption ctrl-c
     signal(SIGINT, keyboard_interrupt);
-    printf("Running writer program...\n");
 
     // generate a unique key
     key_t key;
     call_status(key = ftok("./src/read.c", 65), "Unique key failed\n");
 
-    call_status(sharedMemoryID = shmget(key, MEM_BYTE_SIZE, SHARED_MEM_OPTIONS), "writer: unable to get shared memory\n");
+    // create shared memory segment
+    int sharedMemoryID;
+    call_status(sharedMemoryID = shmget(key, sizeof(messageType), SHARED_MEM_OPTIONS), "writer: unable to get shared memory\n");
 
+    // attach this file to shared memory segment
+    messageType *sharedMemoryPointer;
     call_status(((sharedMemoryPointer = shmat(sharedMemoryID, 0, 0)) == (void *) -1), "writer: Unable to attach\n");
 
-    // create a turn variable in shared memory
-    int *turn = (int *) sharedMemoryPointer;
-
     // writer goes first
-    *turn = WRITER_TURN;
+    (*sharedMemoryPointer).turn = WRITER_TURN;
 
     while(1)
     {
-
-        if (*turn == WRITER_TURN)
+        if ((*sharedMemoryPointer).turn == WRITER_TURN)
         {
-            get_user_input(sharedMemoryPointer);
-            *turn = READER_TURN;
+            strcpy((*sharedMemoryPointer).message, get_user_input()) ;
+            (*sharedMemoryPointer).turn = READER_TURN;
         }
     }
 
-    // functions should be called when shutting down the program
+    // detach from shared memory segment
     call_status(shmdt(sharedMemoryPointer), "writer: unable to detach\n");
 
+    // destroy shared memory segment
     call_status(shmctl(sharedMemoryID, IPC_RMID, 0), "writer: unable to deallocate\n");
 
     return 0;
