@@ -11,7 +11,6 @@
 
 #include "common.h"
 
-// resource: https://www.geeksforgeeks.org/ipc-shared-memory/
 
 int main(void)
 {
@@ -19,24 +18,37 @@ int main(void)
     char *sharedMemoryPointer;
 
     // handling keyboard-interruption ctrl-c
-    signal(SIGINT, signal_handler);
+    signal(SIGINT, keyboard_interrupt);
     printf("Running writer program...\n");
 
     // generate a unique key
     key_t key;
+    call_status(key = ftok("./src/read.c", 65), "Unique key failed\n");
 
-    call_handler(key = ftok("./src/read.c", 65), "Unique key failed\n");
+    call_status(sharedMemoryID = shmget(key, MEM_BYTE_SIZE, SHARED_MEM_OPTIONS), "writer: unable to get shared memory\n");
 
-    call_handler(sharedMemoryID = shmget(key, MEM_BYTE_SIZE, SHARED_MEM_OPTIONS), "writer: unable to get shared memory\n");
+    call_status(((sharedMemoryPointer = shmat(sharedMemoryID, 0, 0)) == (void *) -1), "writer: Unable to attach\n");
 
-    call_handler(((sharedMemoryPointer = shmat(sharedMemoryID, 0, 0)) == (void *) -1), "writer: Unable to attach\n");
+    // create a turn variable in shared memory
+    int *turn = (int *) sharedMemoryPointer;
 
-    // while(1)
-    // {
-    get_user_input(sharedMemoryPointer);
-    // }
+    // writer goes first
+    *turn = WRITER_TURN;
 
-    call_handler(shmdt(sharedMemoryPointer), "writer: unable to detach\n");
+    while(1)
+    {
+
+        if (*turn == WRITER_TURN)
+        {
+            get_user_input(sharedMemoryPointer);
+            *turn = READER_TURN;
+        }
+    }
+
+    // functions should be called when shutting down the program
+    call_status(shmdt(sharedMemoryPointer), "writer: unable to detach\n");
+
+    call_status(shmctl(sharedMemoryID, IPC_RMID, 0), "writer: unable to deallocate\n");
 
     return 0;
 }
