@@ -15,6 +15,10 @@
 #define EXIT_SUCCESS 0
 #define EXIT_FAILURE 1
 
+// resource: https://www.geeksforgeeks.org/ipc-shared-memory/
+
+extern int value;
+
 void get_user_input(char *message)
 {
     char *buffer = malloc(sizeof(char) * BUFFER_SIZE);
@@ -24,25 +28,29 @@ void get_user_input(char *message)
     fgets(buffer, sizeof(buffer), stdin);
 
     // handling "quit" from user input
-    signal(SIGUSR1, signal_handler);
-    call_handler((strcmp(buffer, "quit\n") == 0) * -1, " ");
+    call_status((strcmp(buffer, "quit\n") == 0) * -1, " ");
 
-    strcpy(message, buffer);
+    strcpy(message + sizeof(int), buffer);
     message[strlen(message) - 1] = '\0';
     free(buffer);
 }
 
-void signal_handler(void)
+void keyboard_interrupt(int signal_number)
 {
+    printf("\nexit %d\n", signal_number);
+
+    value = 0;
+
     exit(EXIT_SUCCESS);
 }
 
-void call_handler(int function_call, char *message)
+void call_status(int function_call, char *message)
 {
     if (function_call < 0)
     {
         if (strcmp(message, " ") == 0)
         {
+            value = 0;
             exit(EXIT_SUCCESS);
         }
         else
