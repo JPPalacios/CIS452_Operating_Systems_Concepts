@@ -15,18 +15,22 @@
 #include <sys/shm.h>
 
 #define MEM_BYTE_SIZE 4096
+#define TEXT_SIZE 100
+
 #define WRITER_TURN 1
 #define READER_TURN 2
-#define SHARED_MEM_OPTIONS (IPC_CREAT | S_IRUSR | S_IWUSR)
+
+#define SHARED_MEM_OPTIONS (IPC_CREAT | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP)
+
+typedef struct messageType
+{
+    int turn;
+    char message[TEXT_SIZE];
+} messageType;
 
 int value;
-int turn;
 
-void set_turn(int turn_value);
-
-int get_turn(void);
-
-void get_user_input(char *message);
+char *get_user_input(void);
 
 void keyboard_interrupt(int signal_number);
 
