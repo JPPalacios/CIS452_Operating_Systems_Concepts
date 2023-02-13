@@ -19,20 +19,19 @@
 
 extern int value;
 
-void get_user_input(char *message)
+char *get_user_input(void)
 {
-    char *buffer = malloc(sizeof(char) * BUFFER_SIZE);
+    char buffer[TEXT_SIZE];
+    char *userInput = malloc(strlen(buffer) + 1);
 
     fputs("\nenter a message: ", stdout);
-    fflush(stdout);
     fgets(buffer, sizeof(buffer), stdin);
+    buffer[strlen(buffer) - 1] = '\0';
 
     // handling "quit" from user input
     call_status((strcmp(buffer, "quit\n") == 0) * -1, " ");
 
-    strcpy(message + sizeof(int), buffer);
-    message[strlen(message) - 1] = '\0';
-    free(buffer);
+    return strcpy(userInput, buffer);;
 }
 
 void keyboard_interrupt(int signal_number)
