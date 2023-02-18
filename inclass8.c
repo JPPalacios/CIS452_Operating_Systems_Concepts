@@ -13,7 +13,7 @@
 int semaphore_create()
 {
     /* create a new semaphore set for use by parent and child processes */
-    int semID = semget(IPC_PRIVATE, 1, 00600);
+    int semID = semget(IPC_PRIVATE, 1, S_IWUSR);
     if (semID < 0)
     {
         perror("semget: failed to create\n");
@@ -68,7 +68,6 @@ int main(void)
     int sharedMemoryID;
     pid_t pid;
 
-
     /* printing values out */
     printf("value of IRUSR: %o\n", S_IRUSR);
     printf("value of IWUSR: %o\n", S_IWUSR);
@@ -80,8 +79,12 @@ int main(void)
     printf("value of IWOTH: %o\n", S_IWOTH);
     printf("value of IXOTH: %o\n", S_IXOTH);
 
-    printf("value of S_IWUSR | S_IRUSR: %X\n", S_IWUSR | S_IRUSR);
+    /* value of 0600, radix is octal */
+    printf("value of S_IWUSR | S_IRUSR: %o\n", S_IWUSR | S_IRUSR);
 
+    /* error: permission was denied when creating a semaphore with only S_IRUSR */
+
+    /* pass: program runs when creating a semaphore with only S_IWUSR */
 
     /* controlled process synch */
 
