@@ -7,6 +7,8 @@
 
 #include "main.h"
 
+// need to implement semaphores, threads, and shared memory
+
 int main(void)
 {
 
