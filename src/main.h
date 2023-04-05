@@ -5,11 +5,13 @@
 
 /* Program */
 
-void launch_program(void);
+void create_bakers(void);
 
 void *run_baker_thread(void *arg);
 
 /* Utilities */
+
+void keyboard_interrupt(int signalNumber);
 
 int get_baker_value(void);
 
