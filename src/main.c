@@ -15,7 +15,7 @@
 
 int main(void)
 {
-    logs("launching program...");
+    // logs("launching program...");
 
     signal(SIGINT, keyboard_interrupt);
 
@@ -62,7 +62,7 @@ void create_bakers(void)
     pthread_t baker_thread[nBakers];
     int baker_ID[nBakers];
 
-    logs("bakers getting ready...");
+    // logs("bakers getting ready...");
     for (int i = 0; i < nBakers; i++) {
         baker_ID[i] = i;
     }
@@ -84,7 +84,7 @@ void create_bakers(void)
 
 void get_pantry_ingredients(int recipe, int baker)
 {
-    printf("baker %d waiting to get pantry ingredients...\n", baker);
+    // printf("baker %d waiting to get pantry ingredients...\n", baker);
 
     sem_wait(&pantry);
 
@@ -115,12 +115,11 @@ void get_pantry_ingredients(int recipe, int baker)
 
 void get_fridge_ingredients(int recipe, int baker)
 {
-    int selected_fridge = rand() % FRIDGE_COUNT;
  
-    printf("baker %d waiting to get fridge ingredients...\n", baker);
+    // printf("baker %d waiting to get fridge ingredients...\n", baker);
 
     sem_wait(&fridge);
-    printf("baker %d in fridge %d.\n\n", baker, selected_fridge);
+    // printf("baker %d in fridge %d.\n\n", baker, selected_fridge);
     
     // switch (recipe) {
     //     case 0:
@@ -149,12 +148,11 @@ void get_fridge_ingredients(int recipe, int baker)
 
 void get_utensils(int baker)
 {
-    printf("baker %d waiting to get utensils...\n", baker);
+    // printf("baker %d waiting to get utensils...\n", baker);
     sem_wait(&bowl);
     sem_wait(&mixer);
     sem_wait(&spoon);
     printf("baker %d got utensils.\n\n", baker);
-
     sem_post(&spoon);
     sem_post(&mixer);
     sem_post(&bowl);
@@ -166,11 +164,7 @@ void *run_baker_thread(void *arg)
 
     int current_recipe = 0;
 
-    // todo: fix semaphore baker value
-    // todo: implement utensil sems
-    // 
-
-    while(current_recipe < TOTAL_RECIPE_COUNT)
+    while(current_recipe < 1)
     {
         /* baker getting ingredients from pantry */
         get_pantry_ingredients(current_recipe, baker);
@@ -182,7 +176,7 @@ void *run_baker_thread(void *arg)
         get_utensils(baker);
 
         /* baker cooking recipe in oven */
-        printf("baker %d waiting to use the oven...\n", baker);
+        // printf("baker %d waiting to use the oven...\n", baker);
         sem_wait(&oven);
         printf("baker %d using oven.\n\n", baker);
         sem_post(&oven);
