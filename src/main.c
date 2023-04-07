@@ -10,12 +10,14 @@
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/stat.h>
+#include <time.h>
 
 #include "main.h"
 
 int main(void)
 {
     // logs("launching program...");
+    srand(time(0));
 
     signal(SIGINT, keyboard_interrupt);
 
@@ -62,6 +64,8 @@ void create_bakers(void)
     pthread_t baker_thread[nBakers];
     int baker_ID[nBakers];
 
+    ramsey = rand() % nBakers;
+
     // logs("bakers getting ready...");
     for (int i = 0; i < nBakers; i++) {
         baker_ID[i] = i;
@@ -83,76 +87,95 @@ void create_bakers(void)
 }
 
 void get_pantry_ingredients(int recipe, int baker)
-{
-    // printf("baker %d waiting to get pantry ingredients...\n", baker);
+{    
+    printf("baker %d waiting to get pantry ingredients...\n", baker);
 
     sem_wait(&pantry);
 
-    // switch (recipe) {
-    //     case 0:
-    //         printf("baker %d got flour and sugar from the pantry\n", baker);
-    //         break;
-    //     case 1:
-    //         printf("baker %d got flour, sugar, baking soda, and salt from the pantry\n", baker);
-    //         break;
-    //     case 2:
-    //         printf("baker %d got yeast, sugar, and salt from the pantry\n", baker);
-    //         break;
-    //     case 3:
-    //         printf("baker %d got flour, sugar, salt, yeast, and baking soda from the pantry\n", baker);
-    //         break;
-    //     case 4:
-    //         printf("baker %d got flour, sugar, salt, and cinnamon from the pantry\n", baker);
-    //         break;
-    //     default:
-    //         printf("baker %d did not get any ingredients from the pantry\n", baker);
-    // }
+    printf("baker %d in pantry. 0 spots available.\n", baker);
 
-    printf("baker %d got pantry ingredients.\n", baker);
+    usleep(PANTRY_DELAY_U);
+
+    switch (recipe) {
+        case 0:
+            printf("baker %d got flour and sugar from the pantry\n", baker);
+            break;
+        case 1:
+            printf("baker %d got flour, sugar, baking soda, and salt from the pantry\n", baker);
+            break;
+        case 2:
+            printf("baker %d got yeast, sugar, and salt from the pantry\n", baker);
+            break;
+        case 3:
+            printf("baker %d got flour, sugar, salt, yeast, and baking soda from the pantry\n", baker);
+            break;
+        case 4:
+            printf("baker %d got flour, sugar, salt, and cinnamon from the pantry\n", baker);
+            break;
+        default:
+            printf("baker %d did not get any ingredients from the pantry. Silly baker!\n", baker);
+    }
+
+    // printf("baker %d got pantry ingredients.\n\n", baker);
 
     sem_post(&pantry);
 }
 
 void get_fridge_ingredients(int recipe, int baker)
 {
- 
-    // printf("baker %d waiting to get fridge ingredients...\n", baker);
+    printf("baker %d waiting to get fridge ingredients...\n", baker);
 
     sem_wait(&fridge);
-    // printf("baker %d in fridge %d.\n\n", baker, selected_fridge);
-    
-    // switch (recipe) {
-    //     case 0:
-    //         printf("baker %d got milk and butter from the fridge\n", baker);
-    //         break;
-    //     case 1:
-    //         printf("baker %d got egg, milk, and butter from the fridge\n", baker);
-    //         break;
-    //     case 2:
-    //         printf("baker %d did not get any ingredients from the fridge\n", baker);
-    //         break;
-    //     case 3:
-    //         printf("baker %d got eggs from the fridge\n", baker);
-    //         break;
-    //     case 4:
-    //         printf("baker %d got butter and eggs from the fridge\n", baker);
-    //         break;
-    //     default:
-    //         printf("baker %d did not get any ingredients from the fridge\n", baker);
-    // }
 
-    printf("baker %d got fridge ingredients.\n", baker);
+    sem_getvalue(&fridge, &valp);
+    printf("baker %d in fridge. %d spots available.\n", baker, valp);
+
+    usleep(FRIDGE_DELAY_U);
+    
+    switch (recipe) {
+        case 0:
+            printf("baker %d got milk and butter from the fridge\n", baker);
+            break;
+        case 1:
+            printf("baker %d got egg, milk, and butter from the fridge\n", baker);
+            break;
+        case 2:
+            printf("baker %d did not get any ingredients from the fridge\n", baker);
+            break;
+        case 3:
+            printf("baker %d got eggs from the fridge\n", baker);
+            break;
+        case 4:
+            printf("baker %d got butter and eggs from the fridge\n", baker);
+            break;
+        default:
+            printf("baker %d did not get any ingredients from the fridge\n", baker);
+    }
+
+    // printf("baker %d got fridge ingredients.\n\n", baker);
     sem_post(&fridge);
 
 }
 
 void get_utensils(int baker)
 {
-    // printf("baker %d waiting to get utensils...\n", baker);
+    printf("baker %d waiting to get utensils...\n", baker);
+
     sem_wait(&bowl);
+    sem_getvalue(&bowl, &valp);
+    printf("baker %d got a bowl. %d bowls remain...\n", baker, valp);
+
     sem_wait(&mixer);
+    sem_getvalue(&mixer, &valp);
+    printf("baker %d got a mixer. %d mixers remain...\n", baker, valp);
+
     sem_wait(&spoon);
-    printf("baker %d got utensils.\n\n", baker);
+    sem_getvalue(&spoon, &valp);
+    printf("baker %d got a spoon. %d spoons remain...\n", baker, valp);
+
+    printf("baker %d got all utensils. Mixing...\n", baker);
+    usleep(MIX_DELAY_U);
+    printf("baker %d completed mixing!\n\n", baker);
     sem_post(&spoon);
     sem_post(&mixer);
     sem_post(&bowl);
@@ -164,26 +187,47 @@ void *run_baker_thread(void *arg)
 
     int current_recipe = 0;
 
-    while(current_recipe < 1)
+    ramsey_recipe = rand() % TOTAL_RECIPE_COUNT;
+
+    while(current_recipe < TOTAL_RECIPE_COUNT)
     {
+        printf("baker %d is beginning the %s recipe!\n\n", baker, recipe_book[current_recipe]);
+
         /* baker getting ingredients from pantry */
         get_pantry_ingredients(current_recipe, baker);
 
         /* baker getting ingredients from fridge */
-        get_fridge_ingredients(current_recipe, baker);
+        if(current_recipe != 2){
+            get_fridge_ingredients(current_recipe, baker);
+        }
+        else{
+            printf("baker %d does not need fridge ingredients for this recipe!\n\n", baker);
+        }
 
         // /* baker getting cooking utensils */
         get_utensils(baker);
 
+        if(baker == ramsey && current_recipe == ramsey_recipe){
+            printf("OH NO! Baker %d dropped their mix and then they caught on fire!\n", baker);
+            printf("baker %d must now restart this recipe!\n", baker);
+            ramsey = -1;
+            continue;
+        }
+
         /* baker cooking recipe in oven */
         // printf("baker %d waiting to use the oven...\n", baker);
+        printf("baker %d waiting to use oven...\n", baker);
         sem_wait(&oven);
-        printf("baker %d using oven.\n\n", baker);
+        printf("baker %d using oven. 0 ovens remaining.\n", baker);
+        usleep(BAKE_DELAY_U);
+        printf("baker %d done using oven.\n\n", baker);
         sem_post(&oven);
 
-        printf("\nbaker %d finished the %s recipe!\n\n", baker, recipe_book[current_recipe]);
+        printf("baker %d finished the %s recipe!\n\n", baker, recipe_book[current_recipe]);
         current_recipe++;
     }
+
+    printf("baker %d has completed all recipes!\n\n", baker);
 
     pthread_exit(NULL);
 }

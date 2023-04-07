@@ -12,6 +12,11 @@
 
 #define TOTAL_RECIPE_COUNT 5
 
+#define PANTRY_DELAY_U 100
+#define FRIDGE_DELAY_U 100
+#define MIX_DELAY_U    100
+#define BAKE_DELAY_U   100
+
 #define SETUP 1
 #define DESTROY 0
 
@@ -22,7 +27,9 @@ sem_t bowl;
 sem_t spoon;
 sem_t oven;
 
-char *recipe_book[TOTAL_RECIPE_COUNT] = {"cookies", "pankcakes", "pizza dough", "pretzels", "cinnamon rolls"};
+int valp, ramsey, ramsey_recipe;
+
+char *recipe_book[TOTAL_RECIPE_COUNT] = {"cookies", "pancakes", "pizza dough", "pretzels", "cinnamon rolls"};
 
 /* Program */
 
