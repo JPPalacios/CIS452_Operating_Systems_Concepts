@@ -4,23 +4,23 @@
 #define BUFFER_SIZE 32
 
 #define MIXER_COUNT  2
+#define PANTRY_COUNT 1
 #define FRIDGE_COUNT 2
 #define BOWL_COUNT   3
 #define SPOON_COUNT  5
+#define OVEN_COUNT   1
 
 #define TOTAL_RECIPE_COUNT 5
 
 #define SETUP 1
 #define DESTROY 0
 
-sem_t mixer[MIXER_COUNT];
+sem_t mixer;
 sem_t pantry;
-sem_t fridge[FRIDGE_COUNT];
-sem_t bowl[BOWL_COUNT];
-sem_t spoon[SPOON_COUNT];
+sem_t fridge;
+sem_t bowl;
+sem_t spoon;
 sem_t oven;
-
-pthread_mutex_t mutex;
 
 char *recipe_book[TOTAL_RECIPE_COUNT] = {"cookies", "pankcakes", "pizza dough", "pretzels", "cinnamon rolls"};
 
