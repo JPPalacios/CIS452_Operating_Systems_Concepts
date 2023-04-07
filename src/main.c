@@ -161,6 +161,10 @@ void get_utensils(int baker)
 {
     printf("baker %d waiting to get utensils...\n", baker);
 
+    sem_wait(&spoon);
+    sem_getvalue(&spoon, &valp);
+    printf("baker %d got a spoon. %d spoons remain...\n", baker, valp);
+
     sem_wait(&bowl);
     sem_getvalue(&bowl, &valp);
     printf("baker %d got a bowl. %d bowls remain...\n", baker, valp);
@@ -168,10 +172,6 @@ void get_utensils(int baker)
     sem_wait(&mixer);
     sem_getvalue(&mixer, &valp);
     printf("baker %d got a mixer. %d mixers remain...\n", baker, valp);
-
-    sem_wait(&spoon);
-    sem_getvalue(&spoon, &valp);
-    printf("baker %d got a spoon. %d spoons remain...\n", baker, valp);
 
     printf("baker %d got all utensils. Mixing...\n", baker);
     usleep(MIX_DELAY_U);
